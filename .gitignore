@@ -1,0 +1,8 @@
+.idea
+node_modules/
+bower_components/
+js/static/bundle.js
+js/static/bundle.js.map
+js/src/*.js
+js/src/*.js.map
+

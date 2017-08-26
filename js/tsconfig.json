@@ -1,0 +1,27 @@
+{
+  "buildOnSave": true,
+  "compileOnSave": true,
+  "compilerOptions": {
+    "declaration": false,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "module": "commonjs",
+    "noEmitOnError": true,
+    "noImplicitAny": true,
+    "sourceMap": true,
+    "target": "es2015",
+    "jsx": "react",
+    "typeRoots": [
+      "./@types",
+      "types",
+      "../node_modules/@types"
+    ]
+  },
+  "include": [
+    "./src/**/*"
+  ],
+  "exclude": [
+    "../node_modules",
+    "bower_components"
+  ]
+}
