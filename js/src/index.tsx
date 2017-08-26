@@ -38,13 +38,6 @@ class InfoCell extends React.Component<MediaItemProps, MediaItemState> {
     }
 }
 
-class MyAppProps {
-    url: string;
-}
-
-class MyAppState {
-    url: string;
-}
 
 class PieProps {
     value: number;
@@ -85,29 +78,7 @@ class Pie extends React.Component<PieProps, PieState> {
     }
 }
 
-class MyApp extends React.Component<MyAppProps, MyAppState> {
-    state = {
-        url: this.props.url || ""
-    };
-
-    options = {
-        'clientId': '5r24jw3wvgzz0wk1mzo7htrbefs6ejmg',
-        'linkType': 'direct',
-        'multiselect': true,
-    };
-
-    validate() {
-        console.log("click");
-        // let promise = rxRequest({
-        //     method: 'post',
-        //     url: '/api/1/validate',
-        //     data: {url: "UUUR"}
-        // }).subscribe(result => console.log(result.body.ip), console.error);
-    }
-
-    onChange(v: string) {
-        this.setState({url: v});
-    }
+class BigFootDashboard extends React.Component<{}, {}> {
 
     render() {
         let colStyle = {
@@ -450,5 +421,5 @@ const m1 = {
 
 console.log("Booting...");
 let ga = document.getElementById("app");
-ReactDOM.render(React.createElement(MyApp, new MyAppProps()), ga);
+ReactDOM.render(React.createElement(BigFootDashboard, {}), ga);
 console.log("OK.");
