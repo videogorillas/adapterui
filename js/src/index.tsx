@@ -13,6 +13,8 @@ import * as Rx from "rx"
 
 import * as BigFoot from "bfapi"
 import * as Cloud from "vgcloudapi"
+import {Project} from "bfapi";
+import {Media} from "vgcloudapi";
 
 BigFoot.ApiClient.getProjById("ololo").subscribe(p => {
     console.log("project4244", p)
@@ -22,12 +24,6 @@ Cloud.CloudServices.loadMedia("m1").subscribe(m => {
     console.log("media", m)
 });
 
-class Project {
-
-}
-
-class Media {
-}
 
 class MediaItemState {
 }
