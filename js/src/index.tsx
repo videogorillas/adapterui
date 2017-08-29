@@ -9,6 +9,18 @@ import {Card, CardActions, CardMedia, CardText, CardTitle} from 'react-toolbox/l
 
 import * as ReactDOM from "react-dom";
 
+import * as Rx from "rx"
+
+import * as BigFoot from "bfapi"
+import * as Cloud from "vgcloudapi"
+
+BigFoot.ApiClient.getProjById("ololo").subscribe(p => {
+    console.log("project4244", p)
+});
+
+Cloud.CloudServices.loadMedia("m1").subscribe(m => {
+    console.log("media", m)
+});
 
 class Project {
 
@@ -78,7 +90,22 @@ class Pie extends React.Component<PieProps, PieState> {
     }
 }
 
-class BigFootDashboard extends React.Component<{}, {}> {
+interface BFDState {
+    progress: number
+}
+
+class BigFootDashboard extends React.Component<{}, BFDState> {
+
+    constructor(props:{}) {
+        super(props);
+        this.state = {
+            progress: 6.25
+        }
+    }
+
+    componentDidMount() {
+        let subscribe = Rx.Observable.interval(420).subscribe(x => this.setState({progress: x}));
+    }
 
     render() {
         let colStyle = {
@@ -101,7 +128,7 @@ class BigFootDashboard extends React.Component<{}, {}> {
                         <tbody>
                         <tr>
                             <td style={colStyle}>
-                                Scrubs<br/>
+                                Scrubs2<br/>
                                 EP24
                             </td>
                             <td style={colStyle}>
@@ -112,7 +139,7 @@ class BigFootDashboard extends React.Component<{}, {}> {
                             <td style={colStyle}>
                                 Scans<br/>
                                 1/16<br/>
-                                <ProgressBar mode='determinate' value={6.25}/>
+                                <ProgressBar mode='determinate' value={this.state.progress}/>
                             </td>
                             <td style={colStyle2}>
                                 Bigfoot Package<br/>
