@@ -2,7 +2,8 @@ watch:
 	./node_modules/.bin/webpack --progress --colors --watch
 
 clean:
-	rm target/*
+	rm static/bundle.js
+	rm static/bundle.js.map
 
 js:
 	./node_modules/.bin/webpack --progress --colors
