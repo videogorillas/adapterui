@@ -11,10 +11,9 @@ import * as Cloud from "vgcloudapi";
 import {Media} from "vgcloudapi";
 import * as ReactDOM from "react-dom";
 
+import * as BigFoot from 'bfapi';
+import {Project} from 'bfapi';
 
-// BigFoot.ApiClient.getProjById("ololo").subscribe(p => {
-//     console.log("project4244", p)
-// });
 
 // Cloud.CloudServices.loadMedia("m1").subscribe(m => {
 //     console.log("media", m)
@@ -68,11 +67,11 @@ interface MediaItem {
 class MediaItemState {
 }
 
-class MediaItemProps {
-    media: Media;
+class ProjectCardProps {
+    p: Project;
 }
 
-class MediaItem extends React.Component<MediaItemProps, {}> {
+class ProjectCard extends React.Component<ProjectCardProps, {}> {
 
     render() {
         let colStyle = {
@@ -92,7 +91,7 @@ class MediaItem extends React.Component<MediaItemProps, {}> {
                 <tbody>
                 <tr>
                     <td style={colStyle}>
-                        {this.props.media.filename}<br/>
+                        {this.props.p.name}<br/>
                     </td>
                     <td style={colStyle}>
                         Master<br/>
@@ -123,12 +122,15 @@ class MediaItem extends React.Component<MediaItemProps, {}> {
 }
 
 class DashBoardProps {
-    mediaRx: Rx.Observable<Media>;
+    mediaRx: Observable<Media>;
+    projectsRx: Observable<Project>;
 }
 
 class DashBoardState {
     media: Media[] = [];
+    projects: Map<string, Project> = new Map();
 }
+
 
 class BigFootDashboard extends React.Component<DashBoardProps, DashBoardState> {
 
@@ -138,22 +140,33 @@ class BigFootDashboard extends React.Component<DashBoardProps, DashBoardState> {
     }
 
     componentDidMount() {
-        this.props.mediaRx.subscribe(m => {
-            console.log("m=", m);
-            this.setState(prevState => {
-                if (prevState != null) {
-                    prevState.media.push(m);
-                }
+        this.props.projectsRx
+            .subscribe(p => {
+                this.setState(prevState => {
+                    if (prevState != null) {
+                        prevState.projects.set(p.id, p);
+                    }
+                })
             });
-        });
+
+        // this.props.mediaRx.subscribe(m => {
+        //     console.log("m=", m);
+        //     this.setState(prevState => {
+        //         if (prevState != null) {
+        //             prevState.media.push(m);
+        //         }
+        //     });
+        // });
         // let subscribe = Rx.Observable.interval(420).subscribe(x => this.setState({progress: x}));
     }
 
     render() {
-        let list = this.state.media.map((value, index, array) => {
-            return (<MediaItem key={value.id} media={value}/>);
-        });
+        let list: any = [];
+        this.state.projects.forEach(p => {
+            list.push(<ProjectCard key={p.id} p={p}/>);
+            console.log("p=", p);
 
+        });
         return (
             <div>
                 <AppBar title="Bigfoot Dashboard"/>
@@ -164,12 +177,24 @@ class BigFootDashboard extends React.Component<DashBoardProps, DashBoardState> {
 }
 
 let liveUpdate = new Cloud.LiveUpdate("ws://kote.videogorillas.com:8042/ws/api");
+let bf = new BigFoot.ApiClient("http://kote.videogorillas.com:8042");
+
+function projectsRx() {
+    return bf.listProjectIds()
+        .concatMap(list => {
+            return Observable.from(list);
+        })
+        .concatMap(pId => {
+            return bf.getProjById(pId);
+        });
+}
 
 
 console.log("Booting...");
 let ga = document.getElementById("app");
 let p = new DashBoardProps();
 p.mediaRx = liveUpdate.getMediaRx();
+p.projectsRx = projectsRx();
 ReactDOM.render(React.createElement(BigFootDashboard, p), ga);
 console.log("OK.");
 

@@ -12,7 +12,7 @@
     "live4api": "3.4.1",
     "net": "1.0.2",
     "react": "15.6.1",
-    "react-addons-create-fragment": "^15.6.0",
+    "react-addons-create-fragment": "15.6.0",
     "react-dom": "15.6.1",
     "react-toolbox": "2.0.0-beta.12",
     "request": "2.81.0",
@@ -20,12 +20,13 @@
     "rx": "4.1.0",
     "superagent": "3.5.2",
     "tls": "0.0.1",
-    "vgcloudapi": "file:///Users/chexov/code/cloud2398/jsapi"
+    "vgcloudapi": "file:///Users/chexov/code/cloud2398/jsapi",
+    "bfapi": "file:///Users/chexov/code/vg-brain/bigfoot/jsapi"
   },
   "devDependencies": {
     "@types/jest": "19.2.3",
     "@types/react": "15.0.30",
-    "@types/react-addons-create-fragment": "^0.14.17",
+    "@types/react-addons-create-fragment": "0.14.17",
     "@types/react-dom": "0.14.23",
     "@types/rx": "4.1.1",
     "acorn": "5.1.2",
