@@ -10,5 +10,7 @@ js:
 
 install:
 	npm install
-	./node_modules/.bin/bower install
+	rsync  -var node_modules/material-design-icons/iconfont/ ./static/css/material-design-icons/
+	rsync  -var node_modules/roboto-fontface/css/ ./static/css/
+	rsync  -var node_modules/roboto-fontface/fonts/ ./static/fonts/
 

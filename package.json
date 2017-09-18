@@ -7,6 +7,7 @@
     "devtools": "react-devtools"
   },
   "dependencies": {
+    "bfapi": "file:///Users/chexov/code/vg-brain/bigfoot/jsapi",
     "immutable": "3.8.1",
     "initials": "2.1.5",
     "live4api": "3.4.1",
@@ -20,8 +21,7 @@
     "rx": "4.1.0",
     "superagent": "3.5.2",
     "tls": "0.0.1",
-    "vgcloudapi": "file:///Users/chexov/code/cloud2398/jsapi",
-    "bfapi": "file:///Users/chexov/code/vg-brain/bigfoot/jsapi"
+    "vgcloudapi": "file:///Users/chexov/code/cloud2398/jsapi"
   },
   "devDependencies": {
     "@types/jest": "19.2.3",
@@ -42,7 +42,6 @@
     "babel-preset-react-native": "1.9.1",
     "babel-preset-stage-2": "6.18.0",
     "babelify": "7.3.0",
-    "bower": "1.8.0",
     "browserify": "14.4.0",
     "cross-env": "3.1.4",
     "css-loader": "0.28.4",
@@ -58,6 +57,7 @@
     "gulp-util": "3.0.8",
     "isomorphic-fetch": "2.2.1",
     "jest": "20.0.0",
+    "material-design-icons": "^3.0.1",
     "multi-loader": "0.1.0",
     "nock": "9.0.13",
     "node-fetch": "1.7.0",
@@ -69,6 +69,7 @@
     "react-devtools": "2.2.1",
     "react-hot-loader": "3.0.0-beta.6",
     "react-test-renderer": "15.4.2",
+    "roboto-npm-webfont": "0.0.4",
     "source-map-loader": "0.2.1",
     "style-loader": "0.18.2",
     "ts-jest": "20.0.4",
