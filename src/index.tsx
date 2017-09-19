@@ -156,17 +156,12 @@ class BigFootDashboard extends React.Component<DashBoardProps, DashBoardState> {
     render() {
         console.log("render()", this.props.data);
         let list: any = [];
-        if (this.props.data.isOffline() && this.props.data.projects.size == 0) {
-            list.push((<div>Hi there. There are no projects. Go create one</div>));
-        } else {
-            list.push((<ProjectHeader/>));
+        list.push((<ProjectHeader/>));
 
-            this.props.data.projects.forEach(p => {
-                let percentDone = this.props.data.proxyPackageProgress(p.masterId)
-                list.push(<ProjectCard masterProgress={percentDone} key={p.id} p={p}/>);
-            });
-        }
-
+        this.props.data.projects.forEach(p => {
+            let percentDone = this.props.data.proxyPackageProgress(p.masterId)
+            list.push(<ProjectCard masterProgress={percentDone} key={p.id} p={p}/>);
+        });
 
         return (
             <div>
@@ -265,11 +260,17 @@ class DashBoardDataSource {
                 this.media.set(m.id, m);
                 this.mediaUpdates.onNext(m);
 
-                return Observable.from(m.getJobIds()).concatMap(jobid => {
-                    return this.cloud.loadJob(jobid).doOnNext(j => {
-                        this.jobs.set(j.id, j);
-                        this.jobUpdates.onNext(j);
-                    });
+                return Observable.from(m.getJobIds()).flatMap(jobid => {
+                    let job = this.jobs.get(jobid);
+                    if (job != null && job.isFinished) {
+                        // not gonna change when its finished. don't care
+                        return Observable.just(job);
+                    } else {
+                        return this.cloud.loadJob(jobid).doOnNext(j => {
+                            this.jobs.set(j.id, j);
+                            this.jobUpdates.onNext(j);
+                        });
+                    }
                 });
             });
         }).subscribe(jobupdate => {
@@ -300,7 +301,6 @@ class DashBoardDataSource {
 
     public proxyPackageProgress(mediaId: string): number {
         let media: Media = this.media.get(mediaId);
-        console.log("calc proxy package progress", mediaId, media);
         if (media == null) {
             return -1;
         }
@@ -325,6 +325,7 @@ class DashBoardDataSource {
 
 const dataSourceHost = "kote.videogorillas.com:8042";
 // const dataSourceHost = "localhost:8042";
+
 
 let liveUpdate = new Cloud.LiveUpdate("ws://" + dataSourceHost + "/ws/api");
 let cloud = new Cloud.CloudServicesV2("http://" + dataSourceHost);
