@@ -150,13 +150,14 @@ class BigFootDashboard extends React.Component<DashBoardProps, DashBoardState> {
             list.push((<div>Hi there. There are no projects. Go create one</div>));
         } else {
             list.push((<ProjectHeader/>));
+
             this.props.data.projects.forEach(p => {
                 let master: Media = this.props.data.media.get(p.masterId);
                 console.log("master=", master);
                 let percentDone = 0;
                 if (master) {
-                    this.props.data.mediaProgress(p.masterId);
-                    percentDone = this.props.data.mediaProgress(p.masterId);
+                    this.props.data.proxyPackageProgress(p.masterId);
+                    percentDone = this.props.data.proxyPackageProgress(p.masterId);
                 }
 
                 list.push(<ProjectCard masterProgress={percentDone} key={p.id} p={p}/>);
@@ -194,6 +195,7 @@ class ConStatus {
 
 class DashBoardDataSource {
     private liveUpdate: Cloud.LiveUpdate;
+    private cloud: Cloud.CloudServicesV2;
     private bf: BigFoot.ApiClient;
     private subs: CompositeDisposable;
 
@@ -208,8 +210,9 @@ class DashBoardDataSource {
 
     public status: ConStatus = new ConStatus(Cloud.ConnectionStatus.OFFLINE);
 
-    constructor(liveUpdate: Cloud.LiveUpdate, bf: BigFoot.ApiClient) {
+    constructor(liveUpdate: Cloud.LiveUpdate, cloud: Cloud.CloudServicesV2, bf: BigFoot.ApiClient) {
         this.liveUpdate = liveUpdate;
+        this.cloud = cloud;
         this.bf = bf;
         this.subs = new CompositeDisposable();
         this.mediaUpdates = new Subject<Media>();
@@ -278,26 +281,46 @@ class DashBoardDataSource {
         return this.status.connstatus == Cloud.ConnectionStatus.OFFLINE;
     }
 
-    public mediaProgress(masterId: string): number {
-        return 10;
-        // let cmds: string[] = ["makedash", "high23", "thumbshq", "thumbs", "aacpassthru", "makehls", "segmenter", "fdd"];
-        //
-        // let jobTypeById = master.jobids();
-        // let jobIdsICare = master.getJobIds().map(v => {
-        //     return jobTypeById[v];
-        // }).filter(type => {
-        //     return cmds.indexOf(type) > -1;
-        // });
+    public proxyPackageProgress(masterId: string): number {
+        let media = this.media.get(masterId);
+
+        let proxyCmds = [Cloud.Job.THUMBS, Cloud.Job.THUMBSHQ, Cloud.Job.AACPASSTHRU, Cloud.Job.MAKEDASH,
+            Cloud.Job.HIGH23, Cloud.Job.FDD, Cloud.Job.MAKEHLS, Cloud.Job.SEGMENTER];
+
+        let jobs = Observable.from(media.getJobIds()).flatMap(jobid => {
+            let j = this.jobs.get(jobid);
+
+            if (j == null) {
+                return this.cloud.loadJob(jobid);
+            }
+            return Observable.just(j);
+        });
+
+
+        let progress = 0;
+        let durSec = -1;
+        jobs.toArray().forEach(jobs => {
+            jobs.forEach(jj => {
+                if (proxyCmds.indexOf(jj.command) > -1) {
+                    durSec = jj.durationSec + durSec;
+                    progress = jj.progress + progress;
+                }
+            });
+        });
+
+        return Math.round(progress * 100. / durSec);
     }
+
 }
 
 
 const dataSourceHost = "kote.videogorillas.com:8042";
 
 let liveUpdate = new Cloud.LiveUpdate("ws://" + dataSourceHost + "/ws/api");
+let cloud = new Cloud.CloudServicesV2("http://" + dataSourceHost);
 let bf = new BigFoot.ApiClient("http://" + dataSourceHost);
 
-let data = new DashBoardDataSource(liveUpdate, bf);
+let data = new DashBoardDataSource(liveUpdate, cloud, bf);
 console.log("Booting...");
 let ga = document.getElementById("app");
 let p = new DashBoardProps();
