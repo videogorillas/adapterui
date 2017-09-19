@@ -3,7 +3,7 @@ import {AppBar} from "react-toolbox/lib/app_bar";
 import {Navigation} from 'react-toolbox/lib/navigation';
 import {ProgressBar} from 'react-toolbox/lib/progress_bar';
 
-import {Card} from 'react-toolbox/lib/card';
+import {Card, CardText} from 'react-toolbox/lib/card';
 
 import {CompositeDisposable, Observable, Subject} from 'rx';
 import * as Cloud from "vgcloudapi";
@@ -16,7 +16,6 @@ import * as BigFoot from 'bfapi';
 class StatusIcon extends React.Component<ConStatus, {}> {
 
     render() {
-        console.log("statusicon", this.props.connstatus);
         if (this.props.connstatus == Cloud.ConnectionStatus.ONLINE) {
             return (
                 <svg viewBox="0 0 100 100">
@@ -74,6 +73,16 @@ class ProjectHeader extends React.Component<{}, {}> {
 class ProjectCard extends React.Component<ProjectCardProps, {}> {
     render() {
         let scanscount = this.props.p.scanIds.length;
+
+        if (this.props.masterProgress == -1) {
+            return (<Card style={{width: '100%', margin: '0px', float: 'left'}}>
+                <CardText style={ProjectHeader.colStyle}>
+                    {this.props.p.name}<br/>
+                    Loading...
+                </CardText>
+            </Card>)
+        }
+
         return (<Card style={{width: '100%', margin: '0px', float: 'left'}}>
             <table>
                 <tbody>
@@ -128,7 +137,7 @@ class BigFootDashboard extends React.Component<DashBoardProps, DashBoardState> {
         let newDataNotification = this.props.data.projectRx().map(v => true)
             .merge(this.props.data.mediaRx().map(v => true))
             .merge(this.props.data.jobRx().map(v => true))
-            .throttle(1000)
+            .throttle(420)
             .merge(this.props.data.statusRx().map(v => true));
 
         newDataNotification = newDataNotification.doOnError(e => {
@@ -145,6 +154,7 @@ class BigFootDashboard extends React.Component<DashBoardProps, DashBoardState> {
     }
 
     render() {
+        console.log("render()", this.props.data);
         let list: any = [];
         if (this.props.data.isOffline() && this.props.data.projects.size == 0) {
             list.push((<div>Hi there. There are no projects. Go create one</div>));
@@ -152,16 +162,8 @@ class BigFootDashboard extends React.Component<DashBoardProps, DashBoardState> {
             list.push((<ProjectHeader/>));
 
             this.props.data.projects.forEach(p => {
-                let master: Media = this.props.data.media.get(p.masterId);
-                console.log("master=", master);
-                let percentDone = 0;
-                if (master) {
-                    this.props.data.proxyPackageProgress(p.masterId);
-                    percentDone = this.props.data.proxyPackageProgress(p.masterId);
-                }
-
+                let percentDone = this.props.data.proxyPackageProgress(p.masterId)
                 list.push(<ProjectCard masterProgress={percentDone} key={p.id} p={p}/>);
-                console.log("p=", p);
             });
         }
 
@@ -216,19 +218,16 @@ class DashBoardDataSource {
         this.bf = bf;
         this.subs = new CompositeDisposable();
         this.mediaUpdates = new Subject<Media>();
-        this.subs.add(this.liveUpdate.getMediaRx()
-            .subscribe(m => {
-                this.media.set(m.id, m);
-                this.mediaUpdates.onNext(m);
-            }));
-
+        this.subs.add(this.liveUpdate.getMediaRx().subscribe(m => {
+            this.media.set(m.id, m);
+            this.mediaUpdates.onNext(m);
+        }));
 
         this.jobUpdates = new Subject<Job>();
-        this.subs.add(this.liveUpdate.getJobRx()
-            .subscribe(j => {
-                this.jobs.set(j.id, j);
-                this.jobUpdates.onNext(j)
-            }));
+        this.subs.add(this.liveUpdate.getJobRx().subscribe(j => {
+            this.jobs.set(j.id, j);
+            this.jobUpdates.onNext(j)
+        }));
 
 
         this.projectUpdates = new Subject<BigFoot.Project>();
@@ -259,6 +258,24 @@ class DashBoardDataSource {
                 this.status = new ConStatus(con);
                 this.statusUpdates.onNext(con);
             }));
+
+
+        this.subs.add(this.projectUpdates.concatMap(p => {
+            return this.cloud.loadMedia(p.masterId).concatMap(m => {
+                this.media.set(m.id, m);
+                this.mediaUpdates.onNext(m);
+
+                return Observable.from(m.getJobIds()).concatMap(jobid => {
+                    return this.cloud.loadJob(jobid).doOnNext(j => {
+                        this.jobs.set(j.id, j);
+                        this.jobUpdates.onNext(j);
+                    });
+                });
+            });
+        }).subscribe(jobupdate => {
+        }));
+
+        this.liveUpdate.connect();
     }
 
     public mediaRx(): Observable<Media> {
@@ -281,40 +298,33 @@ class DashBoardDataSource {
         return this.status.connstatus == Cloud.ConnectionStatus.OFFLINE;
     }
 
-    public proxyPackageProgress(masterId: string): number {
-        let media = this.media.get(masterId);
+    public proxyPackageProgress(mediaId: string): number {
+        let media: Media = this.media.get(mediaId);
+        console.log("calc proxy package progress", mediaId, media);
+        if (media == null) {
+            return -1;
+        }
 
         let proxyCmds = [Cloud.Job.THUMBS, Cloud.Job.THUMBSHQ, Cloud.Job.AACPASSTHRU, Cloud.Job.MAKEDASH,
             Cloud.Job.HIGH23, Cloud.Job.FDD, Cloud.Job.MAKEHLS, Cloud.Job.SEGMENTER];
 
-        let jobs = Observable.from(media.getJobIds()).flatMap(jobid => {
-            let j = this.jobs.get(jobid);
-
-            if (j == null) {
-                return this.cloud.loadJob(jobid);
-            }
-            return Observable.just(j);
-        });
-
-
         let progress = 0;
         let durSec = -1;
-        jobs.toArray().forEach(jobs => {
-            jobs.forEach(jj => {
-                if (proxyCmds.indexOf(jj.command) > -1) {
-                    durSec = jj.durationSec + durSec;
-                    progress = jj.progress + progress;
-                }
+        Observable.from(media.getJobIds())
+            .map(jobid => this.jobs.get(jobid))
+            .filter(j => j != null && proxyCmds.indexOf(j.command) > -1)
+            .forEach(job => {
+                durSec = job.durationSec + durSec;
+                progress = job.progress + progress;
             });
-        });
 
         return Math.round(progress * 100. / durSec);
     }
-
 }
 
 
 const dataSourceHost = "kote.videogorillas.com:8042";
+// const dataSourceHost = "localhost:8042";
 
 let liveUpdate = new Cloud.LiveUpdate("ws://" + dataSourceHost + "/ws/api");
 let cloud = new Cloud.CloudServicesV2("http://" + dataSourceHost);
@@ -327,5 +337,3 @@ let p = new DashBoardProps();
 p.data = data;
 ReactDOM.render(React.createElement(BigFootDashboard, p), ga);
 console.log("OK.");
-
-liveUpdate.connect();
