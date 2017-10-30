@@ -1,4 +1,6 @@
 watch:
+	rm -fr node_modules/vgcloudapi node_modules/bfapi
+	npm install
 	./node_modules/.bin/webpack --progress --colors --watch
 
 clean:

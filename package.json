@@ -7,7 +7,7 @@
     "devtools": "react-devtools"
   },
   "dependencies": {
-    "bfapi": "file:///Users/chexov/code/vg-brain/bigfoot/jsapi",
+    "bfapi": "file:../vg-brain/bigfoot/jsapi",
     "immutable": "3.8.1",
     "initials": "2.1.5",
     "live4api": "3.4.1",
@@ -21,7 +21,7 @@
     "rx": "4.1.0",
     "superagent": "3.5.2",
     "tls": "0.0.1",
-    "vgcloudapi": "file:///Users/chexov/code/cloud2398/jsapi"
+    "vgcloudapi": "file:../cloud2398/jsapi"
   },
   "devDependencies": {
     "@types/jest": "19.2.3",

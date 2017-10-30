@@ -2,15 +2,16 @@ import * as React from "react";
 import {AppBar} from "react-toolbox/lib/app_bar";
 import {Navigation} from 'react-toolbox/lib/navigation';
 import {ProgressBar} from 'react-toolbox/lib/progress_bar';
+import {FontIcon} from 'react-toolbox/lib/font_icon';
+
 
 import {Card, CardText} from 'react-toolbox/lib/card';
 
 import {CompositeDisposable, Observable, Subject} from 'rx';
 import * as Cloud from "vgcloudapi";
-import {Job, Media} from "vgcloudapi";
 import * as ReactDOM from "react-dom";
-
-import * as BigFoot from 'bfapi';
+import {ConStatus, DashBoardDataSource} from "./data";
+import {Project} from 'bfapi';
 
 
 class StatusIcon extends React.Component<ConStatus, {}> {
@@ -35,8 +36,9 @@ class StatusIcon extends React.Component<ConStatus, {}> {
 
 
 class ProjectCardProps {
-    p: BigFoot.Project;
+    p: Project;
     masterProgress: number;
+    scansProgress: any[];
 }
 
 class ProjectHeader extends React.Component<{}, {}> {
@@ -58,7 +60,7 @@ class ProjectHeader extends React.Component<{}, {}> {
             <table>
                 <tbody>
                 <tr>
-                    <td style={ProjectHeader.colStyle}><b>Project Name</b></td>
+                    <td><b>Project Name</b></td>
                     <td style={ProjectHeader.colStyle}><b>Master</b></td>
                     <td style={ProjectHeader.colStyle}><b>Scans</b></td>
                     <td style={ProjectHeader.doubleCell}><b>Bigfoot Package</b></td>
@@ -70,10 +72,41 @@ class ProjectHeader extends React.Component<{}, {}> {
     }
 }
 
+
+let MediaProgress = (progress: number) => {
+    if (progress >= 100) {
+        return (<div>
+            <FontIcon value='done'/>
+        </div>);
+    } else {
+        return (<div>
+            {progress}%
+            <ProgressBar mode='determinate' value={progress}/>
+        </div>);
+    }
+};
+
+
+let ScansProgress = (scans: any[]) => {
+    let done = scans.filter(f => f["percent"] == 100);
+    let progress = scans.length
+
+    if (scans.length > 0 && done.length == scans.length) {
+        // all done
+        return (<div>{scans.length}</div>)
+        // return (<div>{scans.length}<FontIcon value='done'/></div>);
+    } else {
+        return (<div>{done.length}/{scans.length}<br/>
+            <ProgressBar mode='determinate' value={progress}/></div>)
+    }
+};
+
+let PackageProgress = (scans: any[]) => {
+
+}
+
 class ProjectCard extends React.Component<ProjectCardProps, {}> {
     render() {
-        let scanscount = this.props.p.scanIds.length;
-
         if (this.props.masterProgress == -1) {
             return (<Card style={{width: '100%', margin: '0px', float: 'left'}}>
                 <CardText style={ProjectHeader.colStyle}>
@@ -92,16 +125,15 @@ class ProjectCard extends React.Component<ProjectCardProps, {}> {
                         {this.props.p.status.toString()}
                     </td>
                     <td style={ProjectHeader.colStyle}>
-                        {this.props.masterProgress}%
-                        <ProgressBar mode='determinate' value={this.props.masterProgress}/>
+                        {MediaProgress(this.props.masterProgress)}
                     </td>
                     <td style={ProjectHeader.colStyle}>
-                        -1/{scanscount}<br/>
-                        <ProgressBar mode='determinate' value={42}/>
+                        {ScansProgress(this.props.scansProgress)}
                     </td>
                     <td style={ProjectHeader.doubleCell}>
-                        <div style={{float: "left", paddingRight: "5px"}}>Proxy: 3/16</div>
-                        <div style={{float: "left"}}>FDD: -1/{scanscount}</div>
+                        {/*<div style={{float: "left", paddingRight: "5px"}}>Proxy: 3/16</div>*/}
+
+                        <div style={{float: "left"}}>FDD: -1/123123</div>
                         <ProgressBar mode='determinate' value={6.25}/>
                     </td>
                     <td style={ProjectHeader.doubleCell}>
@@ -159,8 +191,15 @@ class BigFootDashboard extends React.Component<DashBoardProps, DashBoardState> {
         list.push((<ProjectHeader/>));
 
         this.props.data.projects.forEach(p => {
-            let percentDone = this.props.data.proxyPackageProgress(p.masterId)
-            list.push(<ProjectCard masterProgress={percentDone} key={p.id} p={p}/>);
+            let scansProgress = p.scanIds.reduce((prev: any, sid) => {
+                prev.push({"id": sid, "percent": this.props.data.proxyPackageProgress(sid)});
+                return prev;
+            }, []);
+
+            let percentDone = this.props.data.proxyPackageProgress(p.masterId);
+
+            // let fddProgress = this.props.data.fddProgress(p.)
+            list.push(<ProjectCard key={p.id} masterProgress={percentDone} scansProgress={scansProgress} p={p}/>);
         });
 
         return (
@@ -179,159 +218,13 @@ class BigFootDashboard extends React.Component<DashBoardProps, DashBoardState> {
 }
 
 
-class ConStatus {
-    public connstatus: Cloud.ConnectionStatus;
-    public updated: Date;
-
-    constructor(s: Cloud.ConnectionStatus) {
-        this.connstatus = s;
-        this.updated = new Date();
-    }
-}
-
-
-class DashBoardDataSource {
-    private liveUpdate: Cloud.LiveUpdate;
-    private cloud: Cloud.CloudServicesV2;
-    private bf: BigFoot.ApiClient;
-    private subs: CompositeDisposable;
-
-    private mediaUpdates: Subject<Media>;
-    private projectUpdates: Subject<BigFoot.Project>;
-    private jobUpdates: Subject<Job>;
-    private statusUpdates: Subject<Cloud.ConnectionStatus>;
-
-    public jobs: Map<string, Job> = new Map();
-    public media: Map<string, Media> = new Map();
-    public projects: Map<string, BigFoot.Project> = new Map();
-
-    public status: ConStatus = new ConStatus(Cloud.ConnectionStatus.OFFLINE);
-
-    constructor(liveUpdate: Cloud.LiveUpdate, cloud: Cloud.CloudServicesV2, bf: BigFoot.ApiClient) {
-        this.liveUpdate = liveUpdate;
-        this.cloud = cloud;
-        this.bf = bf;
-        this.subs = new CompositeDisposable();
-        this.mediaUpdates = new Subject<Media>();
-        this.subs.add(this.liveUpdate.getMediaRx().subscribe(m => {
-            this.media.set(m.id, m);
-            this.mediaUpdates.onNext(m);
-        }));
-
-        this.jobUpdates = new Subject<Job>();
-        this.subs.add(this.liveUpdate.getJobRx().subscribe(j => {
-            this.jobs.set(j.id, j);
-            this.jobUpdates.onNext(j)
-        }));
-
-
-        this.projectUpdates = new Subject<BigFoot.Project>();
-        let projectsO: Observable<BigFoot.Project> = Observable.just(1).merge(Observable.interval(15000))
-            .concatMap(bf.listProjectIds())
-            .concatMap(list => {
-                return Observable.from(list);
-            })
-            .concatMap(pId => {
-                return bf.getProjById(pId);
-            });
-        this.subs.add(projectsO
-            .doOnError(e => {
-                console.error("projects list req", e);
-            })
-            .retryWhen(o => {
-                return o.delay(3000)
-            })
-            .subscribe(p => {
-                this.projects.set(p.id, p);
-                this.projectUpdates.onNext(p);
-            }));
-
-        this.statusUpdates = new Subject<Cloud.ConnectionStatus>();
-        this.subs.add(this.liveUpdate.getStatusRx()
-            .subscribe(con => {
-                // con = OFFLINE, CONNECTING, ONLINE
-                this.status = new ConStatus(con);
-                this.statusUpdates.onNext(con);
-            }));
-
-
-        this.subs.add(this.projectUpdates.concatMap(p => {
-            return this.cloud.loadMedia(p.masterId).concatMap(m => {
-                this.media.set(m.id, m);
-                this.mediaUpdates.onNext(m);
-
-                return Observable.from(m.getJobIds()).flatMap(jobid => {
-                    let job = this.jobs.get(jobid);
-                    if (job != null && job.isFinished) {
-                        // not gonna change when its finished. don't care
-                        return Observable.just(job);
-                    } else {
-                        return this.cloud.loadJob(jobid).doOnNext(j => {
-                            this.jobs.set(j.id, j);
-                            this.jobUpdates.onNext(j);
-                        });
-                    }
-                });
-            });
-        }).subscribe(jobupdate => {
-        }));
-
-        this.liveUpdate.connect();
-    }
-
-    public mediaRx(): Observable<Media> {
-        return this.mediaUpdates;
-    }
-
-    public projectRx(): Observable<BigFoot.Project> {
-        return this.projectUpdates;
-    }
-
-    public jobRx(): Observable<Job> {
-        return this.jobUpdates;
-    }
-
-    public statusRx(): Observable<Cloud.ConnectionStatus> {
-        return this.statusUpdates;
-    }
-
-    public isOffline() {
-        return this.status.connstatus == Cloud.ConnectionStatus.OFFLINE;
-    }
-
-    public proxyPackageProgress(mediaId: string): number {
-        let media: Media = this.media.get(mediaId);
-        if (media == null) {
-            return -1;
-        }
-
-        let proxyCmds = [Cloud.Job.THUMBS, Cloud.Job.THUMBSHQ, Cloud.Job.AACPASSTHRU, Cloud.Job.MAKEDASH,
-            Cloud.Job.HIGH23, Cloud.Job.FDD, Cloud.Job.MAKEHLS, Cloud.Job.SEGMENTER];
-
-        let progress = 0;
-        let durSec = -1;
-        Observable.from(media.getJobIds())
-            .map(jobid => this.jobs.get(jobid))
-            .filter(j => j != null && proxyCmds.indexOf(j.command) > -1)
-            .forEach(job => {
-                durSec = job.durationSec + durSec;
-                progress = job.progress + progress;
-            });
-
-        return Math.round(progress * 100. / durSec);
-    }
-}
-
-
-const dataSourceHost = "kote.videogorillas.com:8042";
+const dataSourceHost = "vdms.anton.videogorillas.com";
+// const dataSourceHost = "kote.videogorillas.com:8042";
 // const dataSourceHost = "localhost:8042";
+// const dataSourceHost = "10.0.1.140:8142";
+console.log("data source ", dataSourceHost);
 
-
-let liveUpdate = new Cloud.LiveUpdate("ws://" + dataSourceHost + "/ws/api");
-let cloud = new Cloud.CloudServicesV2("http://" + dataSourceHost);
-let bf = new BigFoot.ApiClient("http://" + dataSourceHost);
-
-let data = new DashBoardDataSource(liveUpdate, cloud, bf);
+let data = new DashBoardDataSource(dataSourceHost);
 console.log("Booting...");
 let ga = document.getElementById("app");
 let p = new DashBoardProps();
